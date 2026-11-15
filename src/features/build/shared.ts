@@ -28,6 +28,8 @@ export type Owned = Record<string, boolean>;
 const ALIAS: Record<string, PartKey> = { lf7: 'lf67', lf2: 'lf13', lf3: 'lf13', bue5: 'bue4', el1v: 'el1', el2: 'el1', el3: 'el4', el5: 'el4' };
 /** Whether the player owns the part (unticked parts are false; unknown ones count as owned). */
 export const owns = (owned: Owned, p: string) => p === 'weiche' || p === 'bue' || owned[ALIAS[p] || p] !== false;
+/** Display name of a part as listed in “My parts”. */
+export const partName = (p: string): Tx => PARTS.flatMap(([, list]) => list).find(([k]) => k === (ALIAS[p] || p))?.[1] ?? tx(p, p);
 
 export const gsIcon = () => D.shForm(false) + `<rect x="-22" y="104" width="44" height="4" fill="var(--track)"/><rect x="6" y="95" width="14" height="9" rx="1.5" fill="${D.K.yel}" stroke="#222" stroke-width=".8"/>`;
 
