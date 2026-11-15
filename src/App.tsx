@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type CSSProperties } from 'react';
 import { tx, useLang } from './i18n';
 import { save } from './lib/storage';
 import Line from './views/Line';
@@ -45,9 +45,14 @@ export default function App() {
     return () => window.removeEventListener('hashchange', on);
   }, []);
   const current = VIEWS.find((v) => v.id === view)!;
+  const idx = VIEWS.indexOf(current);
   useEffect(() => {
     document.title = `${t(current.label)} – Signalbox`;
   }, [current, t]);
+  // keep the current section visible in the scrolling nav on small screens
+  useEffect(() => {
+    document.querySelector('nav.main a.on')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }, [view]);
   const View = current.C;
   return (
     <>
@@ -56,9 +61,13 @@ export default function App() {
         <div className="wrap">
           <div className="brand"><span className="dot" />Signalbox</div>
           <nav className="main" aria-label={t(tx('Bereiche', 'Sections'))}>
-            {VIEWS.map((v) => (
-              <a key={v.id} href={`#${v.id}`} className={v.id === view ? 'on' : undefined} aria-current={v.id === view ? 'page' : undefined}>
+            {VIEWS.map((v, i) => (
+              // the route is lit from the first section up to the current one
+              <a key={v.id} href={`#${v.id}`} style={{ '--i': i } as CSSProperties}
+                className={[i <= idx && 'lit', v.id === view && 'on'].filter(Boolean).join(' ') || undefined}
+                aria-current={v.id === view ? 'page' : undefined}>
                 {t(v.label)}
+                {v.id === view && <span className="lamp" aria-hidden="true" />}
               </a>
             ))}
           </nav>

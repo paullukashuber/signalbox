@@ -185,7 +185,7 @@ export default function PlannerTab({ B, owned }: { B: BuildState; owned: Owned }
           <NumberField label={K('Ziel-Blocklänge (m)', 'Target block length (m)')} value={plan.block} min={400} max={10000} step={50} onChange={(block) => upd({ block })} />
           <SelectField label={K('Weichenneigung (Grenzzeichen)', 'Switch angle (clearance marker)')} value={plan.n} onChange={(n) => upd({ n })}
             options={[7, 9, 12, 14, 18.5].map((n) => [n, `1 : ${decimal(n, lang)}`] as [number, string])} />
-          <NumberField label={<>{K('Überhöhungsfehlbetrag uf (mm)', 'Cant deficiency uf (mm)')} <span className="tag">{K('Richtwert', 'guide value')}</span></>} value={plan.uf} min={0} max={150} step={10} onChange={(uf) => upd({ uf })} />
+          <NumberField label={<span>{K('Überhöhungsfehlbetrag uf (mm)', 'Cant deficiency uf (mm)')} <span className="tag">{K('Richtwert', 'guide value')}</span></span>} value={plan.uf} min={0} max={150} step={10} onChange={(uf) => upd({ uf })} />
           <label className="pl-check">
             <input type="checkbox" checked={plan.electric} onChange={(e) => upd({ electric: e.target.checked })} />
             {K('Elektrifiziert (Fahrleitung)', 'Electrified (catenary)')}
