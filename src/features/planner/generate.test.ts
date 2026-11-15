@@ -64,6 +64,12 @@ describe('planner generator', () => {
     expect(codes(r)).toContain('distant-before-main');
   });
 
+  it('puts the exit distant on the home signal of a short station without warning', () => {
+    const r = generate(plan({}, twoStations(6000)));
+    expect(at(r, 'a:aus:vs')).toBe(at(r, 'a:es'));
+    expect(codes(r)).not.toContain('distant-before-main');
+  });
+
   it('announces slower curves with Lf 6 / Lf 7', () => {
     const r = generate(plan({}, [{ id: 'c', kind: 'curve', from: 3000, to: 3500, r: 400, u: 100 }]));
     expect(at(r, 'c:lf6')).toBe(2000);

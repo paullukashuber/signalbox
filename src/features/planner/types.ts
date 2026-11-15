@@ -43,6 +43,8 @@ export type PlacedItem = {
   name: Tx;
   /** What the signal shows / which number the board carries. */
   aspect?: Tx;
+  /** Number shown on Lf boards and Zs 3 (speed / 10). */
+  num?: number;
   /** The rule that placed it. */
   rule: Tx;
   /** Placed by a guide value, not a checked rule. */
