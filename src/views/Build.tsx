@@ -8,8 +8,9 @@ import RecipesTab from './build/RecipesTab';
 import SwitchesTab from './build/SwitchesTab';
 import SpeedsTab from './build/SpeedsTab';
 import PartsTab from './build/PartsTab';
+import PlannerTab from './build/PlannerTab';
 
-type Tab = 'calc' | 'rez' | 'wei' | 'spd' | 'parts';
+type Tab = 'calc' | 'rez' | 'wei' | 'spd' | 'plan' | 'parts';
 
 export default function Build() {
   const { t } = useLang();
@@ -39,12 +40,14 @@ export default function Build() {
         { v: 'rez', label: tx('Bau-Rezepte', 'Build recipes') },
         { v: 'wei', label: tx('Weichen & Anschlüsse', 'Switches & sidings') },
         { v: 'spd', label: tx('Geschwindigkeiten', 'Speeds') },
+        { v: 'plan', label: tx('Mein Streckenplan', 'My line plan') },
         { v: 'parts', label: tx('Meine Bauteile', 'My parts') },
       ]} />
       {tab === 'calc' && <CalcTab B={B} set={set} owned={owned} />}
       {tab === 'rez' && <RecipesTab B={B} set={set} owned={owned} />}
       {tab === 'wei' && <SwitchesTab B={B} owned={owned} />}
       {tab === 'spd' && <SpeedsTab B={B} set={set} owned={owned} />}
+      {tab === 'plan' && <PlannerTab B={B} owned={owned} />}
       {tab === 'parts' && <PartsTab B={B} owned={owned} setOwned={setOwned} />}
     </>
   );

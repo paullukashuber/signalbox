@@ -4,11 +4,12 @@ import { Seg } from '../components/Seg';
 import { Fig } from '../components/Svg';
 import { pic } from '../signals/draw';
 import {
-  INITIAL, P, SECS, VH, X, aspects, bw, currentAspect, elements, events, isNeben, meaning, nm, speedAt, stopReason, trainY, vsPos,
+  INITIAL, P, SECS, VH, X, aspects, bw, currentAspect, elements, events, isNeben, meaning, nm, speedAt, stopReason, trainY, bakenPos,
   type LineState,
 } from '../features/line/model';
 import { aspectLabel, planMarkup, viewBox } from '../features/line/plan';
 import { info } from '../features/line/info';
+import { R } from '../rules';
 
 const NO_NEBEN = ['aus', 'aus2', 'pzb1000', 'pzb500', 'pzb2000', 'dw', 'dw2'];
 
@@ -116,15 +117,14 @@ export default function Line() {
   }
 
   const legendNote = (k: string, m: number) => {
-    const VS = vsPos(S);
     const extra: Record<string, string> = {
       vs: L(` · ${P.ES - m} m vor ${n ? 'Ne 1' : 'Einfahrsignal'}`, ` · ${P.ES - m} m before ${n ? 'Ne 1' : 'the home signal'}`),
-      baken: L(` · 250/175/100 m vor ${n ? 'Ne 2' : 'Vorsignal'}`, ` · 250/175/100 m before ${n ? 'Ne 2' : 'the distant signal'}`),
+      baken: L(` · ${R.distant.beacons.join('/')} m vor ${n ? 'Ne 2' : 'Vorsignal'}`, ` · ${R.distant.beacons.join('/')} m before ${n ? 'Ne 2' : 'the distant signal'}`),
       lf6: L(` · ${bw(S)} m vor Lf 7`, ` · ${bw(S)} m before Lf 7`),
       bue1: L(` · ${bw(S)} m vor dem Bahnübergang`, ` · ${bw(S)} m before the crossing`),
-      bue2: L(' · 250 m vor dem Bü-Signal', ' · 250 m before the Bü signal'),
+      bue2: L(` · ${R.boards.bue2BeforeMonitor} m vor dem Bü-Signal`, ` · ${R.boards.bue2BeforeMonitor} m before the Bü signal`),
     };
-    const pos = k === 'baken' ? `${VS - 250} / ${VS - 175} / ${VS - 100} m` : `${m} m`;
+    const pos = k === 'baken' ? `${bakenPos(S).join(' / ')} m` : `${m} m`;
     return `${L('Position', 'Position')} ${pos}${extra[k] || ''}`;
   };
 
@@ -176,8 +176,8 @@ export default function Line() {
             ]} />
             <span>{t(tx('Strecke', 'Line'))}</span>
             <Seg value={S.line} onChange={(line) => set({ line })} options={[
-              { v: 'haupt', label: tx('Hauptbahn · 1000 m', 'Main line · 1000 m') },
-              { v: 'neben', label: tx('Nebenbahn · 700 m', 'Branch line · 700 m') },
+              { v: 'haupt', label: tx(`Hauptbahn · ${R.brake.haupt} m`, `Main line · ${R.brake.haupt} m`) },
+              { v: 'neben', label: tx(`Nebenbahn · ${R.brake.neben} m`, `Branch line · ${R.brake.neben} m`) },
             ]} />
             <span>{t(tx('Einfahrsignal', 'Home signal'))}</span>
             <Seg value={S.es} onChange={(es) => set({ es })} options={[

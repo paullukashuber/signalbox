@@ -1,12 +1,13 @@
 import * as D from '../../signals/draw';
 import { tx, type Lang, type Tx } from '../../i18n';
+import { R, overlapFor } from '../../rules';
 
 export type BuildSys = 'form' | 'licht' | 'ks' | 'hl';
 export type BuildState = {
   bw: number; vmax: number; vein: number; f: number; n: number; blk: number; sys: BuildSys;
   wt: number; r: number; u: number; uf: number; zl: number; lfv: number;
 };
-export const BUILD_DEFAULTS: BuildState = { bw: 1000, vmax: 120, vein: 80, f: 1, n: 9, blk: 1100, sys: 'form', wt: 2, r: 700, u: 100, uf: 100, zl: 200, lfv: 70 };
+export const BUILD_DEFAULTS: BuildState = { bw: R.brake.haupt, vmax: 120, vein: 80, f: 1, n: 9, blk: 1100, sys: 'form', wt: 2, r: 700, u: 100, uf: R.curve.ufDefault.v, zl: 200, lfv: 70 };
 
 export type PartKey =
   | 'hs' | 'vs' | 'ms' | 'zs3' | 'zs6' | 'zs1' | 'zs13'
@@ -27,6 +28,8 @@ export type Owned = Record<string, boolean>;
 const ALIAS: Record<string, PartKey> = { lf7: 'lf67', lf2: 'lf13', lf3: 'lf13', bue5: 'bue4', el1v: 'el1', el2: 'el1', el3: 'el4', el5: 'el4' };
 /** Whether the player owns the part (unticked parts are false; unknown ones count as owned). */
 export const owns = (owned: Owned, p: string) => p === 'weiche' || p === 'bue' || owned[ALIAS[p] || p] !== false;
+/** Display name of a part as listed in “My parts”. */
+export const partName = (p: string): Tx => PARTS.flatMap(([, list]) => list).find(([k]) => k === (ALIAS[p] || p))?.[1] ?? tx(p, p);
 
 export const gsIcon = () => D.shForm(false) + `<rect x="-22" y="104" width="44" height="4" fill="var(--track)"/><rect x="6" y="95" width="14" height="9" rx="1.5" fill="${D.K.yel}" stroke="#222" stroke-width=".8"/>`;
 
@@ -76,7 +79,7 @@ export const mini = (d: string, sc = 0.42) => D.pic(d, 44, 70, sc, 22, 4);
 export const isMulti = (s: BuildState) => s.sys === 'ks' || s.sys === 'hl';
 
 /** Overlap behind the home signal for the entry speed (rule-of-thumb values). */
-export const overlap = (vein: number) => (vein > 60 ? 200 : vein > 40 ? 100 : 50);
+export const overlap = (vein: number) => overlapFor(vein);
 
 const locale = (lang: Lang) => (lang === 'de' ? 'de-DE' : 'en-GB');
 /** Signed metres, e.g. “−1,000 m”. */
@@ -86,14 +89,11 @@ export const decimal = (n: number, lang: Lang) => n.toLocaleString(locale(lang))
 
 /* ---------- speed formulas ---------- */
 /** Switch types: [name, diverging speed km/h, approx. length m]. */
-export const SWITCHES: [string, number, number][] = [
-  ['190 – 1:7,5 / 1:9', 40, 27], ['300 – 1:9 / 1:14', 50, 33], ['500 – 1:12 / 1:14', 60, 42],
-  ['760 – 1:14 / 1:18,5', 80, 54], ['1200 – 1:18,5', 100, 65], ['2500 – 1:26,5', 130, 94],
-];
-export const floor10 = (v: number) => Math.floor(v / 10) * 10;
-/** EBO § 40 (7): v = √(r / 11.8 · (u + uf)), rounded down to 10 km/h. */
-export const curveSpeed = (r: number, u: number, uf: number) => floor10(Math.sqrt((r / 11.8) * (u + uf)));
+export const SWITCHES: [string, number, number][] = R.switches.map((w) => [w.name, w.div, w.len]);
+export const floor10 = (v: number) => Math.floor(v / R.curve.round) * R.curve.round;
+/** EBO § 40 (7): v = √(r / k · (u + uf)), rounded down to 10 km/h. */
+export const curveSpeed = (r: number, u: number, uf: number) => floor10(Math.sqrt((r / R.curve.k) * (u + uf)));
 /** Smallest radius (rounded up to 50 m) for a speed. */
-export const minRadius = (v: number, u: number, uf: number) => Math.ceil((11.8 * v * v) / (u + uf) / 50) * 50;
-/** Hl can only show 40, 60 or 100 km/h. */
-export const hlStep = (v: number) => (v >= 100 ? 100 : v >= 60 ? 60 : 40);
+export const minRadius = (v: number, u: number, uf: number) => Math.ceil((R.curve.k * v * v) / (u + uf) / R.curve.radiusStep) * R.curve.radiusStep;
+/** Hl can only show a few speeds (40, 60, 100 km/h): the highest step not above v. */
+export const hlStep = (v: number) => [...R.speed.hlSteps].reverse().find((s) => v >= s) ?? R.speed.hlSteps[0];

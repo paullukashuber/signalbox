@@ -1,5 +1,6 @@
 import { HLM } from '../../signals/draw';
 import { pick, tx, type Lang, type Tx } from '../../i18n';
+import { R, ne6Before } from '../../rules';
 
 export type Sys = 'form' | 'licht' | 'hl' | 'ks' | 'sk' | 'neben';
 export type Section = 'bf' | 'blk' | 'bue' | 'hpt' | 'all';
@@ -29,13 +30,16 @@ export const SECS: Record<Section, [number, number]> = { bf: [0, 3600], blk: [20
 export const TY = 210, SY = 80, VH = 545;
 export const X = (m: number) => 30 + m * 0.36;
 
-export const bw = (S: LineState) => (S.line === 'haupt' ? 1000 : 700);
-export const vsPos = (S: LineState) => (S.line === 'haupt' ? 300 : 600);
-export const lf6Pos = (S: LineState) => P.LF7 - bw(S);
-export const bu1Pos = (S: LineState) => P.BUE - bw(S);
-export const bu2Pos = (S: LineState) => bu1Pos(S) - 250;
-export const el1vPos = (S: LineState) => P.EL1 - bw(S) / 2;
-export const ne6Pos = (S: LineState) => P.HPT - (S.line === 'haupt' ? 1000 : 150);
+export const bw = (S: LineState) => R.brake[S.line];
+export const vsPos = (S: LineState) => P.ES - bw(S);
+export const lf6Pos = (S: LineState) => P.LF7 - bw(S) * R.boards.lf6Factor;
+export const bu1Pos = (S: LineState) => P.BUE - bw(S) * R.boards.bue1Factor.v;
+export const bu2Pos = (S: LineState) => bu1Pos(S) - R.boards.bue2BeforeMonitor;
+export const el1vPos = (S: LineState) => P.EL1 - bw(S) * R.boards.el1vFactor;
+export const ne6Pos = (S: LineState) => P.HPT - ne6Before(bw(S));
+/** Ne 3 beacon positions before the distant signal, outermost first. */
+export const bakenPos = (S: LineState) => R.distant.beacons.map((d) => vsPos(S) - d);
+export const pzb500Pos = () => P.ES - R.pzb.hz500BeforeMain;
 export const isNeben = (S: LineState) => S.sys === 'neben';
 export const isFault = (S: LineState) => S.es === 'z1' || S.es === 'z7';
 export const occ = (S: LineState) => (isNeben(S) ? 0 : S.occ);
@@ -144,7 +148,8 @@ export type El = { k: string; m: number; m2?: number; lab: Tx; hide?: boolean; u
 /** All plan elements, sorted by position. */
 export function elements(S: LineState): El[] {
   const VS = vsPos(S), n = isNeben(S), a: El[] = [];
-  a.push({ k: 'baken', m: VS - 250, m2: VS - 100, lab: tx('Vorsignalbaken Ne 3', 'Ne 3 distant signal beacons') });
+  const bk = bakenPos(S);
+  a.push({ k: 'baken', m: bk[0], m2: bk[2], lab: tx('Vorsignalbaken Ne 3', 'Ne 3 distant signal beacons') });
   a.push({ k: 'vs', m: VS, lab: n ? tx('Vorsignaltafel Ne 2', 'Ne 2 distant board') : tx('Vorsignal', 'Distant signal') });
   if (S.pzb && !n) ['pzb1000', 'pzb500', 'pzb2000'].forEach((k) => a.push({ k, hide: true, m: 0, lab: tx('', '') }));
   a.push({ k: 'es', m: P.ES, lab: n ? tx('Trapeztafel Ne 1', 'Ne 1 trapezoid board') : tx('Einfahrsignal', 'Home signal') });
@@ -180,7 +185,7 @@ export function currentAspect(k: string, A: Aspects): string | undefined {
 function vBase(S: LineState, m: number): number {
   const vm = S.line === 'haupt' ? 120 : 80, VS = vsPos(S), n = isNeben(S), st = isFault(S) && !n;
   const e = n && S.es === 'hp2' ? 'hp1' : st ? 'hp0' : S.es;
-  const vE = st ? 20 : e === 'hp0' ? 0 : e === 'hp2' ? 40 : vm, ah = !n && exitHalt(S), L6 = lf6Pos(S), vL = 60;
+  const vE = st ? 20 : e === 'hp0' ? 0 : e === 'hp2' ? R.speed.hp2Default : vm, ah = !n && exitHalt(S), L6 = lf6Pos(S), vL = 60;
   if (m < VS) return vm;
   if (m < P.ES) {
     const end = vE ? P.ES : P.ES - 25;
@@ -243,9 +248,9 @@ export function events(S: LineState, lang: Lang): [number, string][] {
       : L('Einfahrsignal gestört, Hp 0 + Zs 7: vorbeifahren, auf Sicht bis zum nächsten Hauptsignal', 'Home signal failed, Hp 0 + Zs 7: pass, on sight up to the next main signal')
     : `${L('Einfahrsignal', 'Home signal')} ${N(A.es)}: ${M(A.es)}`;
   const ev: [number, string][] = [
-    [VS - 250, n ? L('Baken: Ne 2 folgt', 'Beacons: Ne 2 ahead') : L('Baken: Vorsignal folgt', 'Beacons: distant signal ahead')],
+    [bakenPos(S)[0], n ? L('Baken: Ne 2 folgt', 'Beacons: Ne 2 ahead') : L('Baken: Vorsignal folgt', 'Beacons: distant signal ahead')],
     [VS, n ? L('Ne 2: Bremspunkt vor Ne 1', 'Ne 2: braking point before Ne 1') : `${L('Vorsignal', 'Distant signal')} ${N(A.vs)}: ${M(A.vs)}${S.es !== 'hp1' ? L(' – PZB 1000 Hz, Wachsamkeitstaste', ' – PZB 1000 Hz, acknowledge') : ''}`],
-    [P.ES - 250, !n && (S.es === 'hp0' || st) ? L('500 Hz wirksam: Geschwindigkeit geprüft', '500 Hz active: speed checked') : ''],
+    [pzb500Pos(), !n && (S.es === 'hp0' || st) ? L('500 Hz wirksam: Geschwindigkeit geprüft', '500 Hz active: speed checked') : ''],
     [P.ES, n ? L('Ne 1: Einfahrt mit Zulassung des Zugleiters', 'Ne 1: entry with the train controller’s permission') : esTxt],
     [P.RA10, L('Ra 10 (gilt nur für Rangierfahrten)', 'Ra 10 (applies to shunting only)')],
     [P.W1, !n && S.es === 'hp2' ? L('Weiche abzweigend, 40 km/h', 'Switch set diverging, 40 km/h') : ''],

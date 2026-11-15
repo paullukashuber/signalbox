@@ -3,6 +3,14 @@ import { tx, useLang } from '../../i18n';
 import { Fig } from '../../components/Svg';
 import { decimal, fmt, icon, mini, owns, type BuildState, type Owned } from '../../features/build/shared';
 import type { Tx } from '../../i18n';
+import { R } from '../../rules';
+
+/** Braking distance choices from the rule profile. */
+export const brakeOptions = (t: (v: Tx) => string): [number, string][] => [
+  [R.brake.haupt, t(tx(`${R.brake.haupt} m – Hauptbahn`, `${R.brake.haupt} m – main line`))],
+  [R.brake.neben, t(tx(`${R.brake.neben} m – Nebenbahn`, `${R.brake.neben} m – branch line`))],
+  [R.brake.langsam, t(tx(`${R.brake.langsam} m – langsame Strecke`, `${R.brake.langsam} m – slow line`))],
+];
 
 /** Number input that commits on blur/Enter and clamps to its range. */
 export function NumberField({ label, value, min, max, step, onChange }: { label: ReactNode; value: number; min: number; max: number; step: number; onChange: (v: number) => void }) {
@@ -41,14 +49,11 @@ export function SelectField<V extends string | number>({ label, value, options, 
 /** Shared inputs for the distance calculator and recipes. */
 export function BuildInputs({ B, set, withBlock }: { B: BuildState; set: (p: Partial<BuildState>) => void; withBlock?: boolean }) {
   const { t, lang } = useLang();
-  const [f, setF] = useState(B.f);
-  useEffect(() => setF(B.f), [B.f]);
-  const scale = (v: number) => decimal(Math.round(10 / v) / 10, lang);
   return (
     <div className="calc">
       <SelectField label={t(tx('Bremsweg der Strecke', 'Line braking distance'))} value={B.bw}
         onChange={(bw) => set({ bw, blk: Math.max(B.blk, bw) })}
-        options={[[1000, t(tx('1000 m – Hauptbahn', '1000 m – main line'))], [700, t(tx('700 m – Nebenbahn', '700 m – branch line'))], [400, t(tx('400 m – langsame Strecke', '400 m – slow line'))]]} />
+        options={brakeOptions(t)} />
       <NumberField label={t(tx('Streckengeschwindigkeit (km/h)', 'Line speed (km/h)'))} value={B.vmax} min={20} max={300} step={10} onChange={(vmax) => set({ vmax })} />
       <NumberField label={t(tx('Einfahrgeschwindigkeit in den Bahnhof (km/h)', 'Entry speed into the station (km/h)'))} value={B.vein} min={20} max={160} step={10} onChange={(vein) => set({ vein })} />
       <SelectField label={t(tx('Weichenneigung (für das Grenzzeichen)', 'Switch angle (for the clearance marker)'))} value={B.n} onChange={(n) => set({ n })}
@@ -56,13 +61,24 @@ export function BuildInputs({ B, set, withBlock }: { B: BuildState; set: (p: Par
       {withBlock && <NumberField label={t(tx('Blocklänge (m)', 'Block length (m)'))} value={B.blk} min={400} max={3000} step={50} onChange={(blk) => set({ blk })} />}
       <SelectField label={t(tx('Signalsystem', 'Signalling system'))} value={B.sys} onChange={(sys) => set({ sys })}
         options={[['form', t(tx('Form H/V', 'Semaphore H/V'))], ['licht', t(tx('Licht H/V', 'Light H/V'))], ['ks', 'Ks'], ['hl', 'Hl']]} />
-      <label>
-        <span>{t(tx('Maßstab im Spiel', 'In-game scale'))}: <b style={{ color: 'var(--ink)' }}>1 : {scale(f)}</b></span>
-        <input type="range" min={0.1} max={1} step={0.05} value={f}
-          onChange={(e) => setF(+e.target.value)}
-          onPointerUp={() => set({ f })} onKeyUp={() => set({ f })} onBlur={() => f !== B.f && set({ f })} />
-      </label>
+      <ScaleField value={B.f} onChange={(f) => set({ f })} />
     </div>
+  );
+}
+
+/** Game scale slider; commits when the pointer or key is released. */
+export function ScaleField({ value, onChange }: { value: number; onChange: (f: number) => void }) {
+  const { t, lang } = useLang();
+  const [f, setF] = useState(value);
+  useEffect(() => setF(value), [value]);
+  const scale = (v: number) => decimal(Math.round(10 / v) / 10, lang);
+  return (
+    <label>
+      <span>{t(tx('Maßstab im Spiel', 'In-game scale'))}: <b style={{ color: 'var(--ink)' }}>1 : {scale(f)}</b></span>
+      <input type="range" min={0.1} max={1} step={0.05} value={f}
+        onChange={(e) => setF(+e.target.value)}
+        onPointerUp={() => onChange(f)} onKeyUp={() => onChange(f)} onBlur={() => f !== value && onChange(f)} />
+    </label>
   );
 }
 

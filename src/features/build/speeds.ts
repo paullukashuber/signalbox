@@ -1,5 +1,6 @@
 import * as D from '../../signals/draw';
 import { tx, type Tx } from '../../i18n';
+import { R, overlapFor } from '../../rules';
 import { SWITCHES, curveSpeed, hlStep, icon, type BuildState, type BuildSys } from './shared';
 
 export type SigView = { svg: string; name: Tx; zs?: boolean };
@@ -8,7 +9,7 @@ export type SigView = { svg: string; name: Tx; zs?: boolean };
 export function speedMain(v: number, sys: BuildSys): SigView {
   const z = String(v / 10);
   if (sys === 'form' || sys === 'licht') {
-    const withZs = v !== 40;
+    const withZs = v !== R.speed.hp2Default;
     return {
       svg: sys === 'form' ? D.formHp('Hp2') : D.hvHp('Hp2'),
       name: tx('Hp 2 Langsamfahrt' + (withZs ? ` + Zs 3 „${z}“` : ''), 'Hp 2 slow speed' + (withZs ? ` + Zs 3 “${z}”` : '')),
@@ -25,8 +26,8 @@ export function speedMain(v: number, sys: BuildSys): SigView {
 export function speedDistant(v: number, sys: BuildSys): SigView {
   const z = String(v / 10);
   if (sys === 'form' || sys === 'licht') {
-    const de = 'Vr 2 Langsamfahrt erwarten' + (v !== 40 ? ` + Zs 3v „${z}“` : '');
-    const en = 'Vr 2 expect slow speed' + (v !== 40 ? ` + Zs 3v “${z}”` : '');
+    const de = 'Vr 2 Langsamfahrt erwarten' + (v !== R.speed.hp2Default ? ` + Zs 3v „${z}“` : '');
+    const en = 'Vr 2 expect slow speed' + (v !== R.speed.hp2Default ? ` + Zs 3v “${z}”` : '');
     return { svg: sys === 'form' ? D.formVr('Vr2') : D.hvVr('Vr2'), name: tx(de, en) };
   }
   if (sys === 'ks') return { svg: D.ksSig('Ks1b', '', z, true), name: tx(`Ks 1 blinkend + Zs 3v „${z}“ (gelbe Ziffer)`, `Ks 1 flashing + Zs 3v “${z}” (yellow number)`) };
@@ -63,7 +64,7 @@ export function speedPlan(B: BuildState): SpeedPlan {
   x = B0 + BL + zl + (vB < vmax ? accDist(vB, vmax) : 0);
   const L0 = Math.round((x + bw + 600) / 50) * 50, LL = 400;
   x = L0 + LL + zl + (lfv < vmax ? accDist(lfv, vmax) : 0);
-  const E = Math.round((x + bw + 800) / 50) * 50, dw = vDiv > 60 ? 200 : vDiv > 40 ? 100 : 50, END = E + dw + lw + 400;
+  const E = Math.round((x + bw + 800) / 50) * 50, dw = overlapFor(vDiv), END = E + dw + lw + 400;
   const segs: [number, number, number][] = [[0, wEnd, vDiv], [B0, B0 + BL, vB], [L0, L0 + LL, lfv], [E, END, vDiv]];
   const lim = (m: number, ext: boolean) => {
     let v = vmax;
