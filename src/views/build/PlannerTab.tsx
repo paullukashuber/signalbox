@@ -6,7 +6,7 @@ import { load, save } from '../../lib/storage';
 import { R } from '../../rules';
 import { decimal, mini, num, type BuildState, type Owned } from '../../features/build/shared';
 import { generate } from '../../features/planner/generate';
-import { DEFAULT_PLAN, newElement, newId, sanitizePlan } from '../../features/planner/model';
+import { DEFAULT_PLAN, newElement, newId, sanitizePlan, shiftElements } from '../../features/planner/model';
 import { bandMarkup, itemIcon } from '../../features/planner/band';
 import { cleanDone, fileName, planFromJson, planToJson, type Done } from '../../features/planner/io';
 import type { ElKind, LinePlan, PlanEl } from '../../features/planner/types';
@@ -55,8 +55,13 @@ function TextField({ label, value, onChange }: { label: string; value: string; o
   );
 }
 
-function ElementEditor({ e, update, remove }: { e: PlanEl; update: (p: Partial<PlanEl>) => void; remove: () => void }) {
+function ElementEditor({ e, update, remove, move }: { e: PlanEl; update: (p: Partial<PlanEl>) => void; remove: () => void; move: (d: number, following: boolean) => void }) {
   const { t } = useLang();
+  const [dist, setDist] = useState('100');
+  const go = (sign: 1 | -1, following: boolean) => {
+    const d = Math.round(Math.abs(Number(dist.replace(',', '.'))));
+    if (Number.isFinite(d) && d > 0) move(sign * Math.min(d, 1_000_000), following);
+  };
   const swOpts = R.switches.map((w, i) => [i, `${w.name} → ${w.div} km/h`] as [number, string]);
   const title = t(kindName(e.kind)) + ('name' in e && e.name ? ` ${e.name}` : '');
   const K = (de: string, en: string) => t(tx(de, en));
@@ -94,7 +99,16 @@ function ElementEditor({ e, update, remove }: { e: PlanEl; update: (p: Partial<P
           {e.type === 'buegel' && <NumberField label={K('Länge des Abschnitts (m)', 'Section length (m)')} value={e.len} min={0} max={2000} step={10} onChange={(len) => update({ len })} />}
         </>}
       </div>
-      <button type="button" className="go ghost pl-del" onClick={remove} aria-label={K(`${title} entfernen`, `Remove ${title}`)}>{K('Entfernen', 'Remove')}</button>
+      <div className="pl-move" role="group" aria-label={K(`${title} verschieben`, `Move ${title}`)}>
+        <label>{K('Verschieben um (m)', 'Move by (m)')}
+          <input type="text" inputMode="numeric" value={dist} onChange={(ev) => setDist(ev.target.value)} />
+        </label>
+        <button type="button" className="go ghost" onClick={() => go(-1, false)} aria-label={K('Nur dieses Element zurück', 'This element only, backwards')}>← {K('nur dieses', 'this only')}</button>
+        <button type="button" className="go ghost" onClick={() => go(1, false)} aria-label={K('Nur dieses Element vor', 'This element only, forwards')}>{K('nur dieses', 'this only')} →</button>
+        <button type="button" className="go ghost" onClick={() => go(-1, true)} aria-label={K('Dieses und alle folgenden zurück', 'This and all following, backwards')}>← {K('mit allen folgenden', 'with all following')}</button>
+        <button type="button" className="go ghost" onClick={() => go(1, true)} aria-label={K('Dieses und alle folgenden vor', 'This and all following, forwards')}>{K('mit allen folgenden', 'with all following')} →</button>
+        <button type="button" className="go ghost pl-del" onClick={remove} aria-label={K(`${title} entfernen`, `Remove ${title}`)}>{K('Entfernen', 'Remove')}</button>
+      </div>
     </fieldset>
   );
 }
@@ -182,8 +196,8 @@ export default function PlannerTab({ B, owned }: { B: BuildState; owned: Owned }
 
       <div className="panel pl-sec pl-edit">
         <h2>{K('Elemente', 'Elements')}</h2>
-        <p className="note">{K('Kilometerlage in Fahrtrichtung. Blocksignale zwischen den Bahnhöfen setzt der Planer selbst.', 'Kilometre positions in the direction of travel. The planner places block signals between stations by itself.')}</p>
-        {sorted.map((e) => <ElementEditor key={e.id} e={e} update={(p) => updEl(e.id, p)} remove={() => setPlan({ ...plan, elements: plan.elements.filter((x) => x.id !== e.id) })} />)}
+        <p className="note">{K('Kilometerlage in Fahrtrichtung. Blocksignale zwischen den Bahnhöfen setzt der Planer selbst. Mit „mit allen folgenden“ schaffst du Platz für ein vergessenes Element.', 'Kilometre positions in the direction of travel. The planner places block signals between stations by itself. Use “with all following” to make room for a forgotten element.')}</p>
+        {sorted.map((e) => <ElementEditor key={e.id} e={e} update={(p) => updEl(e.id, p)} remove={() => setPlan({ ...plan, elements: plan.elements.filter((x) => x.id !== e.id) })} move={(d, f) => setPlan(shiftElements(plan, e.id, d, f))} />)}
         {!sorted.length && <p className="note">{K('Noch keine Elemente.', 'No elements yet.')}</p>}
         <div className="pl-add" role="group" aria-label={K('Element hinzufügen', 'Add element')}>
           <span>{K('Hinzufügen:', 'Add:')}</span>

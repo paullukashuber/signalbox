@@ -216,3 +216,9 @@ ol.tf li{margin-bottom:6px}
   .pl-list tr.done{opacity:1}
   .warn{break-inside:avoid}
 }
+
+.pl-move{display:flex;flex-wrap:wrap;gap:6px;align-items:flex-end}
+.pl-move label{display:flex;flex-direction:column;gap:4px;font-size:12.5px;color:var(--mute)}
+.pl-move input{width:90px;font:inherit;font-size:13.5px;padding:5px 8px;border-radius:8px;border:1px solid var(--line);background:var(--field,var(--panel));color:var(--ink)}
+.pl-move .go{font-size:13px;padding:5px 11px}
+.pl-move .pl-del{margin-left:auto}

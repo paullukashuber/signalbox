@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { generate } from './generate';
-import { DEFAULT_PLAN, sanitizePlan } from './model';
+import { DEFAULT_PLAN, sanitizePlan, shiftElements } from './model';
 import type { LinePlan, PlanEl } from './types';
 
 const plan = (p: Partial<LinePlan> = {}, elements?: PlanEl[]): LinePlan => ({ ...DEFAULT_PLAN, ...p, elements: elements ?? DEFAULT_PLAN.elements });
@@ -168,5 +168,28 @@ describe('plan sanitizing', () => {
     expect(p.elements).toHaveLength(3);
     expect(p.elements[0]).toMatchObject({ kind: 'bue', at: 0 });
     expect(new Set(p.elements.map((e) => e.id)).size).toBe(3);
+  });
+});
+
+describe('moving elements', () => {
+  it('moves one element including both ends', () => {
+    const p = shiftElements(DEFAULT_PLAN, 'e1', 500, false);
+    expect(p.elements[0]).toMatchObject({ from: 2000, to: 2800 });
+    expect(p.elements.slice(1)).toEqual(DEFAULT_PLAN.elements.slice(1));
+  });
+  it('moves an element and everything after it to make room', () => {
+    const p = shiftElements(DEFAULT_PLAN, 'e2', 1000, true);
+    expect(p.elements[0]).toEqual(DEFAULT_PLAN.elements[0]);
+    expect(p.elements[1]).toMatchObject({ from: 5500, to: 6000 });
+    expect(p.elements[2]).toMatchObject({ at: 7500 });
+    expect(p.elements[3]).toMatchObject({ from: 10000, to: 10800 });
+  });
+  it('never moves anything before km 0', () => {
+    const p = shiftElements(DEFAULT_PLAN, 'e1', -5000, true);
+    expect(p.elements[0]).toMatchObject({ from: 0, to: 800 });
+    expect(p.elements[2]).toMatchObject({ at: 5000 });
+  });
+  it('keeps ids so ticks stay attached', () => {
+    expect(shiftElements(DEFAULT_PLAN, 'e3', 200, false).elements.map((e) => e.id)).toEqual(['e1', 'e2', 'e3', 'e4']);
   });
 });

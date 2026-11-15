@@ -88,3 +88,21 @@ export function sanitizePlan(raw: unknown): LinePlan | null {
     elements,
   };
 }
+
+const startOf = (e: PlanEl) => ('from' in e ? e.from : e.at);
+const moveEl = (e: PlanEl, d: number): PlanEl => ('from' in e ? { ...e, from: e.from + d, to: e.to + d } : { ...e, at: e.at + d });
+
+/**
+ * Moves one element by d metres, or (following = true) the element and everything that starts at or after it.
+ * The shift is limited so nothing ends up before km 0.
+ */
+export function shiftElements(plan: LinePlan, id: string, d: number, following: boolean): LinePlan {
+  const el = plan.elements.find((e) => e.id === id);
+  if (!el || !d) return plan;
+  const s0 = startOf(el);
+  const hit = (e: PlanEl) => e.id === id || (following && startOf(e) >= s0);
+  const minStart = Math.min(...plan.elements.filter(hit).map(startOf));
+  const dd = Math.max(d, -minStart);
+  if (!dd) return plan;
+  return { ...plan, elements: plan.elements.map((e) => (hit(e) ? moveEl(e, dd) : e)) };
+}

@@ -100,3 +100,24 @@ test('planner exports, imports and prints', async ({ page }) => {
   await expect(page.locator('.pl-list')).toBeVisible();
   expect(errs).toEqual([]);
 });
+
+test('planner moves one element or everything after it', async ({ page }) => {
+  await openPlanner(page);
+  await buildLine(page);
+  const curve = page.getByRole('group', { name: 'Bogen verschieben' });
+  await curve.getByLabel('Verschieben um (m)').fill('2000');
+  await curve.getByRole('button', { name: 'Dieses und alle folgenden vor' }).click();
+  await expect(page.getByRole('group', { name: 'Bogen', exact: true }).getByLabel('km von')).toHaveValue('4,800');
+  await expect(page.getByRole('group', { name: 'Bahnhof Süd', exact: true }).getByLabel('km Anfang (erste Einfahrweiche)')).toHaveValue('10,000');
+  await expect(page.getByRole('group', { name: 'Bahnhof Nord', exact: true }).getByLabel('km Anfang (erste Einfahrweiche)')).toHaveValue('1,000');
+
+  const bue = page.getByRole('group', { name: 'Bahnübergang verschieben' });
+  await bue.getByLabel('Verschieben um (m)').fill('500');
+  await bue.getByRole('button', { name: 'Nur dieses Element zurück' }).click();
+  await expect(page.getByRole('group', { name: 'Bahnübergang', exact: true }).getByLabel('km')).toHaveValue('5,700');
+  await expect(page.getByRole('group', { name: 'Bahnhof Süd', exact: true }).getByLabel('km Anfang (erste Einfahrweiche)')).toHaveValue('10,000');
+
+  await page.reload();
+  await page.getByRole('button', { name: 'Mein Streckenplan' }).click();
+  await expect(page.getByRole('group', { name: 'Bahnübergang', exact: true }).getByLabel('km')).toHaveValue('5,700');
+});
