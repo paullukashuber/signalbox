@@ -1,7 +1,8 @@
+import { R } from '../../rules';
 import * as D from '../../signals/draw';
 import { pick, type Lang } from '../../i18n';
 import {
-  P, SECS, SY, TY, X, aspects, bu1Pos, bu2Pos, bw, el1vPos, elements, isFault, isNeben, lf6Pos, ne6Pos, occ, vsPos,
+  P, SECS, SY, TY, X, aspects, bakenPos, bu1Pos, bu2Pos, bw, el1vPos, pzb500Pos, elements, isFault, isNeben, lf6Pos, ne6Pos, occ, vsPos,
   type Aspects, type LineState,
 } from './model';
 
@@ -109,7 +110,8 @@ export function planMarkup(S: LineState, lang: Lang): string {
     if (e.hide) return;
     const x = X(e.m);
     if (e.k === 'baken') {
-      ([[VS - 250, 3], [VS - 175, 2], [VS - 100, 1]] as const).forEach(([m, c]) => {
+      bakenPos(S).forEach((m, i) => {
+        const c = 3 - i;
         s += hit('baken', `<rect x="-10" y="-4" width="20" height="120" fill="transparent"/>${D.bake(c)}`, `translate(${X(m)} ${TY + 30}) scale(.95)`);
       });
     } else if (e.side) s += hit(e.k, `<rect x="-26" y="-4" width="52" height="160" fill="transparent"/>${drawElement(S, e.k, A, night)}`, `translate(${x} ${SY + 12}) scale(.72)`);
@@ -118,13 +120,13 @@ export function planMarkup(S: LineState, lang: Lang): string {
       const top = TY + 14 + (low.includes(e.k) ? 30 : 0) + (e.k === 'bue1' ? 20 : 0) + (n && (e.k === 'vs' || e.k === 'es') ? 30 : 0);
       s += hit(e.k, `<rect x="-26" y="-14" width="52" height="160" fill="transparent"/>${drawElement(S, e.k, A, night)}`, `translate(${x} ${top})`);
     }
-    const bx = e.k === 'baken' ? X(VS - 175) : e.side ? x + 24 : e.up ? x + 30 : x;
+    const bx = e.k === 'baken' ? X(bakenPos(S)[1]) : e.side ? x + 24 : e.up ? x + 30 : x;
     const by = e.side ? SY + 60 : e.up ? TY - 100 : TY + 174;
     s += hit(e.k, `<circle cx="${bx}" cy="${by}" r="10" fill="var(--ink)"/><text x="${bx}" y="${by + 4}" text-anchor="middle" font-size="11" font-weight="600" style="fill:var(--card)">${e.n}</text>`);
   });
   if (S.pzb && !n) {
     const on1 = S.es !== 'hp1', on5 = S.es === 'hp0' || isFault(S);
-    ([[VS, '1000 Hz', on1, 'pzb1000'], [P.ES - 250, '500 Hz', on5, 'pzb500'], [P.ES, '2000 Hz', on5, 'pzb2000']] as const).forEach(([m, l, on, k]) => {
+    ([[VS, '1000 Hz', on1, 'pzb1000'], [pzb500Pos(), '500 Hz', on5, 'pzb500'], [P.ES, '2000 Hz', on5, 'pzb2000']] as const).forEach(([m, l, on, k]) => {
       const x = X(m);
       s += hit(k, `<rect x="${x - 22}" y="${TY - 26}" width="44" height="34" fill="transparent"/><rect x="${x + 3}" y="${TY + 2}" width="12" height="7" rx="1.5" fill="${on ? '#EF9F27' : '#888780'}" stroke="var(--track)" stroke-width=".6"/><text x="${x + 9}" y="${TY - 8}" text-anchor="middle" font-size="11" style="fill:${on ? '#BA7517' : 'var(--mute)'}">${l}</text>`);
     });
@@ -135,14 +137,15 @@ export function planMarkup(S: LineState, lang: Lang): string {
     s += dim(P.ES, P.A, y1, L('Bahnhof', 'Station'), 'bhf');
     s += dim(lf6Pos(S), P.LF7, y1, `Lf 6 → Lf 7: ${b} m`, 'lfabst');
     s += dim(bu1Pos(S), P.BUE, y1, `${L('Bü-Signal → Bahnübergang', 'Bü signal → crossing')}: ${b} m`, 'bueabst');
-    s += dim(VS - 250, VS, y2, L('Baken 250 m', 'Beacons 250 m'), 'baken');
-    if (S.pzb && !n) s += dim(P.ES - 250, P.ES, y2, '500 Hz: 250 m', 'pzb500');
-    s += dim(bu2Pos(S), bu1Pos(S), y2, '250 m', 'bue2');
+    const bk = R.distant.beacons[0], p5 = R.pzb.hz500BeforeMain, b2 = R.boards.bue2BeforeMonitor;
+    s += dim(VS - bk, VS, y2, L(`Baken ${bk} m`, `Beacons ${bk} m`), 'baken');
+    if (S.pzb && !n) s += dim(pzb500Pos(), P.ES, y2, `500 Hz: ${p5} m`, 'pzb500');
+    s += dim(bu2Pos(S), bu1Pos(S), y2, `${b2} m`, 'bue2');
     if (!n) {
       s += dim(P.ES, P.W1, y3, L('Durchrutschweg ≈200 m', 'Overlap ≈200 m'), 'dw');
       s += dim(P.A, P.W2, y3, L('Durchrutschweg', 'Overlap'), 'dw2');
     }
-    s += dim(el1vPos(S), P.EL1, y2, `El 1v → El 1: ${b / 2} m ${L('(halber Bremsweg)', '(half braking distance)')}`, 'elabst');
+    s += dim(el1vPos(S), P.EL1, y2, `El 1v → El 1: ${b * R.boards.el1vFactor} m ${L('(halber Bremsweg)', '(half braking distance)')}`, 'elabst');
     s += dim(ne6Pos(S), P.HPT, y1, `${L('Ne 6 → Haltepunkt', 'Ne 6 → halt')}: ${P.HPT - ne6Pos(S)} m`, 'ne6abst');
     if (!n) s += dim(P.A, P.BK1, y4, `Block 1: ${P.BK1 - P.A} m`, 'blk') + dim(P.BK1, P.BK2, y4, `Block 2: ${P.BK2 - P.BK1} m`, 'blk') + dim(P.BK2, P.BK3, y4, `Block 3: ${P.BK3 - P.BK2} m`, 'blk');
   }

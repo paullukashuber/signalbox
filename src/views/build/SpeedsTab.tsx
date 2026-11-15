@@ -3,7 +3,8 @@ import { Fig } from '../../components/Svg';
 import * as D from '../../signals/draw';
 import { SWITCHES, curveSpeed, decimal, hlStep, minRadius, mini, num, owns, type BuildState, type Owned } from '../../features/build/shared';
 import { SPEED_RULES, speedDistant, speedMain, speedPlan, type SpeedPlan } from '../../features/build/speeds';
-import { NumberField, RuleGrid, SelectField, StepList, type StepRow } from './fields';
+import { NumberField, RuleGrid, SelectField, StepList, brakeOptions, type StepRow } from './fields';
+import { R } from '../../rules';
 
 function Profile({ P, B, owned }: { P: SpeedPlan; B: BuildState; owned: Owned }) {
   const { t } = useLang();
@@ -66,9 +67,10 @@ export default function SpeedsTab({ B, set, owned }: { B: BuildState; set: (p: P
   const [wn, vW] = SWITCHES[B.wt];
   const vB = curveSpeed(B.r, B.u, B.uf), rm = minRadius(B.vmax, B.u, B.uf), z = P.vDiv / 10;
   const warn: string[] = [];
-  if (B.vmax > 160) warn.push(t(tx('Über 160 km/h brauchst du Führerraumsignalisierung (LZB oder ETCS); Lf-Tafeln und Zs 3 reichen nicht mehr.', 'Above 160 km/h you need cab signalling (LZB or ETCS); Lf boards and Zs 3 are no longer enough.')));
-  if (B.bw < 1000 && B.vmax > 100) warn.push(t(tx('Mit 700 m oder 400 m Bremsweg (Nebenbahn) sind höchstens 100 km/h zulässig.', 'With 700 m or 400 m braking distance (branch line) at most 100 km/h is allowed.')));
-  if (B.sys === 'hl' && ![40, 60, 100].includes(P.vDiv)) warn.push(t(tx(`Hl zeigt ${P.vDiv} km/h nicht an – das Signal zeigt ${hlStep(P.vDiv)} km/h.`, `Hl cannot show ${P.vDiv} km/h – the signal shows ${hlStep(P.vDiv)} km/h.`)));
+  const lim = R.speed.limits;
+  if (B.vmax > lim.pzb) warn.push(t(tx(`Über ${lim.pzb} km/h brauchst du Führerraumsignalisierung (LZB oder ETCS); Lf-Tafeln und Zs 3 reichen nicht mehr.`, `Above ${lim.pzb} km/h you need cab signalling (LZB or ETCS); Lf boards and Zs 3 are no longer enough.`)));
+  if (B.bw < R.brake.haupt && B.vmax > lim.branch) warn.push(t(tx(`Mit ${R.brake.neben} m oder ${R.brake.langsam} m Bremsweg (Nebenbahn) sind höchstens ${lim.branch} km/h zulässig.`, `With ${R.brake.neben} m or ${R.brake.langsam} m braking distance (branch line) at most ${lim.branch} km/h is allowed.`)));
+  if (B.sys === 'hl' && !R.speed.hlSteps.includes(P.vDiv)) warn.push(t(tx(`Hl zeigt ${P.vDiv} km/h nicht an – das Signal zeigt ${hlStep(P.vDiv)} km/h.`, `Hl cannot show ${P.vDiv} km/h – the signal shows ${hlStep(P.vDiv)} km/h.`)));
   const rows: StepRow[] = P.items.map((it) => ({ m: it.m, part: it.part, name: it.name, note: it.note, svg: it.svg }));
   const SigCell = ({ svg, extra, label }: { svg: string; extra?: string; label: string }) => (
     <div className="sigcell">
@@ -101,7 +103,7 @@ export default function SpeedsTab({ B, set, owned }: { B: BuildState; set: (p: P
         <div className="calc">
           <NumberField label={t(tx('Streckengeschwindigkeit (km/h)', 'Line speed (km/h)'))} value={B.vmax} min={40} max={300} step={10} onChange={(vmax) => set({ vmax })} />
           <SelectField label={t(tx('Bremsweg der Strecke', 'Line braking distance'))} value={B.bw} onChange={(bw) => set({ bw, blk: Math.max(B.blk, bw) })}
-            options={[[1000, t(tx('1000 m – Hauptbahn', '1000 m – main line'))], [700, t(tx('700 m – Nebenbahn', '700 m – branch line'))], [400, t(tx('400 m – langsame Strecke', '400 m – slow line'))]]} />
+            options={brakeOptions(t)} />
           <SelectField label={t(tx('Signalsystem', 'Signalling system'))} value={B.sys} onChange={(sys) => set({ sys })}
             options={[['form', t(tx('Form H/V', 'Semaphore H/V'))], ['licht', t(tx('Licht H/V', 'Light H/V'))], ['ks', 'Ks'], ['hl', 'Hl']]} />
           <SelectField label={t(tx('Weiche (Radius – Neigung)', 'Switch (radius – angle)'))} value={B.wt} onChange={(wt) => set({ wt })}

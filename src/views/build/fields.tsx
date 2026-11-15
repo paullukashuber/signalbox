@@ -3,6 +3,14 @@ import { tx, useLang } from '../../i18n';
 import { Fig } from '../../components/Svg';
 import { decimal, fmt, icon, mini, owns, type BuildState, type Owned } from '../../features/build/shared';
 import type { Tx } from '../../i18n';
+import { R } from '../../rules';
+
+/** Braking distance choices from the rule profile. */
+export const brakeOptions = (t: (v: Tx) => string): [number, string][] => [
+  [R.brake.haupt, t(tx(`${R.brake.haupt} m – Hauptbahn`, `${R.brake.haupt} m – main line`))],
+  [R.brake.neben, t(tx(`${R.brake.neben} m – Nebenbahn`, `${R.brake.neben} m – branch line`))],
+  [R.brake.langsam, t(tx(`${R.brake.langsam} m – langsame Strecke`, `${R.brake.langsam} m – slow line`))],
+];
 
 /** Number input that commits on blur/Enter and clamps to its range. */
 export function NumberField({ label, value, min, max, step, onChange }: { label: ReactNode; value: number; min: number; max: number; step: number; onChange: (v: number) => void }) {
@@ -48,7 +56,7 @@ export function BuildInputs({ B, set, withBlock }: { B: BuildState; set: (p: Par
     <div className="calc">
       <SelectField label={t(tx('Bremsweg der Strecke', 'Line braking distance'))} value={B.bw}
         onChange={(bw) => set({ bw, blk: Math.max(B.blk, bw) })}
-        options={[[1000, t(tx('1000 m – Hauptbahn', '1000 m – main line'))], [700, t(tx('700 m – Nebenbahn', '700 m – branch line'))], [400, t(tx('400 m – langsame Strecke', '400 m – slow line'))]]} />
+        options={brakeOptions(t)} />
       <NumberField label={t(tx('Streckengeschwindigkeit (km/h)', 'Line speed (km/h)'))} value={B.vmax} min={20} max={300} step={10} onChange={(vmax) => set({ vmax })} />
       <NumberField label={t(tx('Einfahrgeschwindigkeit in den Bahnhof (km/h)', 'Entry speed into the station (km/h)'))} value={B.vein} min={20} max={160} step={10} onChange={(vein) => set({ vein })} />
       <SelectField label={t(tx('Weichenneigung (für das Grenzzeichen)', 'Switch angle (for the clearance marker)'))} value={B.n} onChange={(n) => set({ n })}
