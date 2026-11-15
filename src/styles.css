@@ -199,3 +199,20 @@ ol.tf li{margin-bottom:6px}
 .pl-list tr.miss b{text-decoration:line-through;color:var(--mute)}
 .pl-list input[type=checkbox]{width:18px;height:18px}
 .pl-ic{background:var(--sky);border-radius:6px;display:flex;justify-content:center}
+.pl-tools{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.pl-tools .go{font-size:13.5px;padding:7px 14px}
+.pl-msg{margin:0;padding:6px 12px}
+.pl-print{display:none}
+@media print{
+  html:root{color-scheme:light;--bg:#fff;--panel:#fff;--soft:#E6EAED;--ink:#1A1F24;--mute:#5B6670;--line:#D6DCE1;--track:#2A3138;--acc:#C8102E;--accbg:#FBEAEC;--sel:#D08A00;--plat:#E4E8EB;--road:#DADFE3;--sky:#F2F4F6;--card:#fff;--head:#fff;--planbg:#fff;--dots:#E3E7EA;--on:#14884A;--onfg:#0E6E3B;--onbg:#E2F4E9;--onbd:#A6D9BB;--gofg:#fff;--warnbd:#F1C2C9;--field:#fff}
+  body{background:#fff}
+  .top,.skip,.sub3,.lead,.pl-tools,.pl-edit,.pl-settings,main:has(.planner)>h1,.pl-listhead .seg,.pl-listhead button,.hint{display:none!important}
+  .pl-print{display:block}
+  .pl-print h2{margin:0 0 4px}
+  .panel{border:0;padding:0}
+  .tw{overflow:visible}
+  .pl-band{width:100%;height:auto}
+  .pl-list tr{break-inside:avoid}
+  .pl-list tr.done{opacity:1}
+  .warn{break-inside:avoid}
+}

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { tx, useLang, type Tx } from '../../i18n';
 import { Fig } from '../../components/Svg';
 import { Seg } from '../../components/Seg';
@@ -8,11 +8,11 @@ import { decimal, mini, num, type BuildState, type Owned } from '../../features/
 import { generate } from '../../features/planner/generate';
 import { DEFAULT_PLAN, newElement, newId, sanitizePlan } from '../../features/planner/model';
 import { bandMarkup, itemIcon } from '../../features/planner/band';
+import { cleanDone, fileName, planFromJson, planToJson, type Done } from '../../features/planner/io';
 import type { ElKind, LinePlan, PlanEl } from '../../features/planner/types';
 import { NumberField, ScaleField, SelectField } from './fields';
 
 const PLAN_KEY = 'sig-plan', DONE_KEY = 'sig-plan-done';
-type Done = Record<string, boolean>;
 
 export const KINDS: [ElKind, Tx][] = [
   ['bf', tx('Bahnhof', 'Station')],
@@ -24,13 +24,6 @@ export const KINDS: [ElKind, Tx][] = [
   ['lf', tx('Langsamfahrstelle', 'Speed restriction')],
 ];
 const kindName = (k: ElKind) => KINDS.find(([v]) => v === k)![1];
-
-/** Keeps only boolean ticks (storage and imports are untrusted). */
-export function cleanDone(raw: unknown): Done {
-  const out: Done = {};
-  if (raw && typeof raw === 'object') Object.entries(raw).forEach(([k, v]) => { if (v === true) out[k] = true; });
-  return out;
-}
 
 /** Kilometre input (shown as km with three decimals, stored as metres). */
 function KmField({ label, value, onChange }: { label: string; value: number; onChange: (m: number) => void }) {
@@ -112,6 +105,8 @@ export default function PlannerTab({ B, owned }: { B: BuildState; owned: Owned }
   const [plan, setPlanState] = useState<LinePlan>(() => sanitizePlan(load<unknown>(PLAN_KEY, null)) ?? { ...DEFAULT_PLAN, f: B.f, sys: B.sys });
   const [done, setDoneState] = useState<Done>(() => cleanDone(load<unknown>(DONE_KEY, {})));
   const [filter, setFilter] = useState<'all' | 'open'>('all');
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const fileRef = useRef<HTMLInputElement>(null);
   const setPlan = (p: LinePlan) => { setPlanState(p); save(PLAN_KEY, p); };
   const setDone = (d: Done) => { setDoneState(d); save(DONE_KEY, d); };
   const upd = (p: Partial<LinePlan>) => setPlan({ ...plan, ...p });
@@ -125,11 +120,41 @@ export default function PlannerTab({ B, owned }: { B: BuildState; owned: Owned }
   const band = useMemo(() => bandMarkup(plan, items, done, lang), [plan, items, done, lang]);
   const sorted = [...plan.elements].sort((a, b) => ('from' in a ? a.from : a.at) - ('from' in b ? b.from : b.at));
   const builtCount = items.filter((i) => done[i.id]).length;
+  const exportPlan = () => {
+    const url = URL.createObjectURL(new Blob([planToJson(plan, done)], { type: 'application/json' }));
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = fileName(plan);
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+  const importPlan = async (file: File | undefined) => {
+    if (!file) return;
+    const res = file.size > 2_000_000 ? null : planFromJson(await file.text());
+    if (!res) return setMsg({ ok: false, text: K('Die Datei ist kein gültiger Streckenplan.', 'The file is not a valid line plan.') });
+    setPlan(res.plan);
+    setDone(res.done);
+    setMsg({ ok: true, text: K(`Plan „${res.plan.name || file.name}“ geladen.`, `Plan “${res.plan.name || file.name}” loaded.`) });
+  };
   const kmTxt = (m: number) => (lang === 'de' ? (m / 1000).toFixed(3).replace('.', ',') : (m / 1000).toFixed(3));
 
   return (
     <div className="planner">
-      <div className="panel pl-sec">
+      <div className="pl-tools" role="group" aria-label={K('Plan', 'Plan')}>
+        <button type="button" className="go ghost" onClick={exportPlan}>{K('Als JSON exportieren', 'Export as JSON')}</button>
+        <button type="button" className="go ghost" onClick={() => fileRef.current?.click()}>{K('JSON importieren', 'Import JSON')}</button>
+        <input ref={fileRef} type="file" accept=".json,application/json" hidden data-testid="plan-import"
+          onChange={(e) => { importPlan(e.target.files?.[0]); e.target.value = ''; }} />
+        <button type="button" className="go ghost" onClick={() => window.print()}>{K('Drucken', 'Print')}</button>
+        {msg && <span className={msg.ok ? 'note' : 'warn pl-msg'} role="status">{msg.text}</span>}
+      </div>
+      <div className="pl-print">
+        <h2>{plan.name || K('Mein Streckenplan', 'My line plan')}</h2>
+        <p className="note">
+          {t(kindName('bf'))}: {plan.elements.filter((e) => e.kind === 'bf').length} · {plan.vmax} km/h · {K('Bremsweg', 'braking distance')} {R.brake[plan.cls]} m · {({ form: K('Form H/V', 'Semaphore H/V'), licht: K('Licht H/V', 'Light H/V'), ks: 'Ks', hl: 'Hl' })[plan.sys]} · {plan.tc.toUpperCase()} · 1 : {decimal(Math.round(10 / plan.f) / 10, lang)}
+        </p>
+      </div>
+      <div className="panel pl-sec pl-settings">
         <h2>{K('Strecke', 'Line')}</h2>
         <div className="calc">
           <TextField label={K('Name des Plans', 'Plan name')} value={plan.name} onChange={(name) => upd({ name })} />
